@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>喜欢</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000}
+  body{
+    font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+    color:#fff;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+  #stage{
+    position:fixed; inset:0;
+    overflow:hidden;
+    background:#000;
+  }
+  #center{
+    position:absolute;
+    left:50%; top:50%;
+    transform:translate(-50%,-50%) scale(.96);
+    width:min(90vw,900px);
+    text-align:center;
+    font-size:clamp(26px,6vw,62px);
+    font-weight:600;
+    letter-spacing:.08em;
+    line-height:1.35;
+    opacity:0;
+    filter:blur(5px);
+    text-shadow:0 0 18px rgba(255,255,255,.16);
+    z-index:10;
+    transition:opacity .9s ease,filter .9s ease,transform .9s cubic-bezier(.2,.8,.2,1);
+  }
+  #center.show{
+    opacity:1; filter:blur(0);
+    transform:translate(-50%,-50%) scale(1);
+  }
+  #center.fade{
+    opacity:.82;
+    transform:translate(-50%,-50%) scale(.98);
+  }
+  .word{
+    position:absolute;
+    left:50%; top:50%;
+    white-space:nowrap;
+    pointer-events:none;
+    opacity:0;
+    will-change:transform,opacity,filter;
+    font-weight:400;
+    text-shadow:0 0 8px rgba(255,255,255,.14);
+    animation:fly var(--duration) cubic-bezier(.16,.72,.25,1) forwards;
+    animation-delay:var(--delay);
+  }
+  @keyframes fly{
+    0%{
+      opacity:0;
+      filter:blur(3px);
+      transform:
+        translate(calc(-50% + var(--sx)),calc(-50% + var(--sy)))
+        scale(.55) rotate(var(--r0));
+    }
+    10%{
+      opacity:var(--alpha);
+      filter:blur(0);
+    }
+    55%{
+      opacity:var(--alpha);
+      filter:blur(0);
+      transform:
+        translate(calc(-50% + var(--ex)),calc(-50% + var(--ey)))
+        scale(var(--scale)) rotate(var(--r1));
+    }
+    76%{
+      opacity:var(--alpha);
+      filter:blur(0);
+      transform:
+        translate(calc(-50% + var(--ex)),calc(-50% + var(--ey)))
+        scale(var(--scale)) rotate(var(--r1));
+    }
+    100%{
+      opacity:0;
+      filter:blur(1px);
+      transform:
+        translate(calc(-50% + var(--ex2)),calc(-50% + var(--ey2)))
+        scale(var(--scale)) rotate(var(--r1));
+    }
+  }
+  #hint{
+    position:absolute;
+    left:50%; bottom:max(18px,env(safe-area-inset-bottom));
+    transform:translateX(-50%);
+    font-size:12px;
+    letter-spacing:.12em;
+    color:rgba(255,255,255,.34);
+    z-index:20;
+    opacity:0;
+    transition:opacity 1s ease;
+  }
+  #hint.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="center"></div>
+  <div id="hint">轻触屏幕 · 再播放一次</div>
+</div>
+
+<script>
+/* ==========================
+   只需要改这里
+   ========================== */
+const CONFIG = {
+  centerText: "我会喜欢你的全部",
+
+  // 周围会随机出现这些不同的短句，可继续自己增删
+  floatingTexts: [
+    "你的笑",
+    "你的认真",
+    "你的温柔",
+    "你的可爱",
+    "你的倔强",
+    "你的勇敢",
+    "你的善良",
+    "你的小脾气",
+    "你的开心",
+    "你的难过",
+    "你的安静",
+    "你的热闹",
+    "你的每一种样子",
+    "你的闪闪发光",
+    "你的普通日常",
+    "你偶尔的迷糊",
+    "你认真的时候",
+    "你开心的时候",
+    "你不开心的时候",
+    "你的小情绪",
+    "你的小习惯",
+    "你真实的样子",
+    "你的全部",
+    "关于你的一切",
+    "你说话时的语气",
+    "你认真听我说话的时候",
+    "你不经意的温柔",
+    "你藏不住的开心",
+    "你嘴硬的样子",
+    "你发呆的时候",
+    "你突然安静的时候",
+    "你笑起来的样子",
+    "你努力的样子",
+    "你专注的样子",
+    "你偶尔的小任性",
+    "你奇奇怪怪的想法",
+    "你慢慢靠近的时候",
+    "你分享日常的时候",
+    "你认真解释的时候",
+    "你期待一件事的时候",
+    "你收到惊喜的时候",
+    "你忍不住笑的时候",
+    "你故作镇定的时候",
+    "你偶尔犯迷糊的时候",
+    "你有一点点生气的时候",
+    "你放松下来的样子",
+    "你眼里的光",
+    "你自然流露的情绪",
+    "你不完美的小地方",
+    "你独一无二的习惯",
+    "你平凡又特别的瞬间",
+    "你没有刻意表现的样子",
+    "你最真实的一面",
+    "你偶尔脆弱的时候",
+    "你重新打起精神的时候",
+    "你坚持自己的时候",
+    "你认真生活的样子",
+    "你对喜欢的事发光的时候",
+    "你突然冒出的灵感",
+    "你忍不住分享的事情",
+    "你的小小期待",
+    "你的小小坚持",
+    "你偶尔的敏感",
+    "你慢热的温柔",
+    "你藏在细节里的认真",
+    "你不经意的小动作",
+    "你熟悉的表情",
+    "你说过的小事",
+    "你记得的小细节",
+    "你偶尔的小抱怨",
+    "你有点傲娇的时候",
+    "你开心到停不下来的时候",
+    "你安安静静待着的时候",
+    "你认真思考的时候",
+    "你努力完成一件事的时候",
+    "你为自己加油的时候",
+    "你重新出发的时候",
+    "你勇敢做决定的时候",
+    "你偶尔需要鼓励的时候",
+    "你慢慢变好的样子",
+    "你越来越坚定的样子",
+    "你自由自在的样子",
+    "每一次见到你",
+    "每一次想起你",
+    "每一个普通瞬间",
+    "每一个特别瞬间",
+    "那些不起眼的小瞬间",
+    "那些值得记住的日常",
+    "平平常常的每一天",
+    "突然想起你的时刻",
+    "和你有关的小事",
+    "连你自己都没注意到的样子",
+    "那些没有被记录的瞬间",
+    "属于你的独特节奏",
+    "你身上细碎的闪光点",
+    "你认真对待生活的方式",
+    "你慢慢成长的过程",
+    "你偶尔停下来休息的时候",
+    "你重新鼓起勇气的时候",
+    "你朝目标前进的时候",
+    "你相信自己的时候",
+    "你做自己的时候"
+  ],
+
+  // 数量稍微减少，避免过于拥挤
+  totalWords: 102,
+
+  // 更慢、更舒缓
+  startAfter: 2200,
+  spawnInterval: 115,
+
+  minFont: 12,
+  maxFont: 22,
+
+  // 单个文字从中心飘到远处所需时间
+  minDuration: 7200,
+  maxDuration: 10500
+};
+/* ========================== */
+
+const stage = document.querySelector("#stage");
+const center = document.querySelector("#center");
+const hint = document.querySelector("#hint");
+let timers = [];
+let playing = false;
+
+let occupied = [];
+
+function chooseEndpoint(w,h,index){
+  // Divide the screen around the center into many cells.
+  // Prefer cells not recently used so labels do not pile on top of one another.
+  const marginX = 36, marginY = 48;
+  const cols = Math.max(4, Math.floor(w / 115));
+  const rows = Math.max(5, Math.floor(h / 72));
+  const candidates = [];
+
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const px = marginX + (c + .5) * ((w - marginX*2)/cols);
+      const py = marginY + (r + .5) * ((h - marginY*2)/rows);
+      const dx = px - w/2, dy = py - h/2;
+      // Leave a clean zone around the main sentence.
+      if(Math.abs(dx) < Math.min(165,w*.23) && Math.abs(dy) < 78) continue;
+      const minD = occupied.reduce((m,p)=>Math.min(m,Math.hypot(px-p.x,py-p.y)),Infinity);
+      candidates.push({px,py,dx,dy,minD});
+    }
+  }
+  candidates.sort((a,b)=>b.minD-a.minD);
+  const pool=candidates.slice(0,Math.max(1,Math.min(12,candidates.length)));
+  const pick=pool[Math.floor(Math.random()*pool.length)] || {px:w/2,py:h/2,dx:0,dy:0};
+  occupied.push({x:pick.px,y:pick.py});
+  // Old words fade away, so release old slots as the animation continues.
+  if(occupied.length>Math.max(18,Math.floor(cols*rows*.45))) occupied.shift();
+  return {ex:pick.dx+rand(-18,18),ey:pick.dy+rand(-10,10)};
+}
+
+const rand = (a,b) => a + Math.random()*(b-a);
+
+function later(fn,ms){
+  const id=setTimeout(fn,ms);
+  timers.push(id);
+}
+
+function clearScene(){
+  timers.forEach(clearTimeout);
+  timers=[];
+  stage.querySelectorAll(".word").forEach(el=>el.remove());
+  occupied=[];
+  center.className="";
+  center.textContent="";
+  hint.className="";
+}
+
+function revealCenter(){
+  const chars=[...CONFIG.centerText];
+  let i=0;
+  center.textContent="";
+  center.classList.add("show");
+
+  const type=()=>{
+    if(i<chars.length){
+      center.textContent+=chars[i++];
+      later(type, Math.floor(rand(85,160)));
+    }
+  };
+  type();
+}
+
+function createWord(index){
+  const el=document.createElement("span");
+  el.className="word";
+  el.textContent=CONFIG.floatingTexts[Math.floor(Math.random()*CONFIG.floatingTexts.length)];
+
+  const w=innerWidth, h=innerHeight;
+  const angle=Math.random()*Math.PI*2;
+  const endpoint=chooseEndpoint(w,h,index);
+  let ex=endpoint.ex;
+  let ey=endpoint.ey;
+
+  const sx=rand(-34,34);
+  const sy=rand(-28,28);
+  const size=rand(CONFIG.minFont,CONFIG.maxFont);
+  const duration=rand(CONFIG.minDuration,CONFIG.maxDuration);
+  const alpha=rand(.34,.92);
+  const scale=rand(.85,1.45);
+  const r0=rand(-8,8);
+  const r1=rand(-15,15);
+
+  el.style.fontSize=size+"px";
+  el.style.setProperty("--sx",sx+"px");
+  el.style.setProperty("--sy",sy+"px");
+  el.style.setProperty("--ex",ex+"px");
+  el.style.setProperty("--ey",ey+"px");
+  el.style.setProperty("--ex2",(ex + Math.cos(angle)*18)+"px");
+  el.style.setProperty("--ey2",(ey + Math.sin(angle)*18)+"px");
+  el.style.setProperty("--duration",duration+"ms");
+  el.style.setProperty("--delay","0ms");
+  el.style.setProperty("--alpha",alpha);
+  el.style.setProperty("--scale",scale);
+  el.style.setProperty("--r0",r0+"deg");
+  el.style.setProperty("--r1",r1+"deg");
+  el.style.zIndex=Math.random()<.25 ? 12 : Math.floor(rand(1,9));
+
+  stage.appendChild(el);
+  later(()=>el.remove(),duration+150);
+}
+
+function burst(){
+  center.classList.add("fade");
+
+  // 前段少量，后段越来越密，模拟视频里“逐渐爆发”
+  for(let i=0;i<CONFIG.totalWords;i++){
+    const progress=i/CONFIG.totalWords;
+    const delay =
+      progress<.18
+        ? i*150
+        : 2200 + (i-CONFIG.totalWords*.18)*CONFIG.spawnInterval;
+
+    later(()=>createWord(i),delay);
+  }
+
+  const totalTime=2200 + CONFIG.totalWords*CONFIG.spawnInterval + CONFIG.maxDuration;
+  later(()=>{
+    hint.classList.add("show");
+    playing=false;
+  },totalTime);
+}
+
+function play(){
+  if(playing)return;
+  playing=true;
+  clearScene();
+
+  later(revealCenter,350);
+  later(burst,CONFIG.startAfter);
+}
+
+stage.addEventListener("pointerdown",()=>{
+  if(!playing) play();
+});
+
+play();
+</script>
+</body>
+</html>
